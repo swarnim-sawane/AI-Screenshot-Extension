@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "Visual AI Screenshot Analyzer",
+  "version": "1.0.0",
+  "description": "Instantly analyze any part of a webpage with AI-powered insights. Capture, crop, and get intelligent explanations in seconds.",
+  
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "https://api.groq.com/*"
+  ],
+  
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' https://cdn.jsdelivr.net; object-src 'self'"
+  },
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["utils/imageProcessor.js", "content.js"],
+      "css": ["styles/content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  
+  "commands": {
+    "start-capture": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "windows": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Start screenshot selection"
+    }
+  },
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Visual AI Screenshot Analyzer - Instantly understand any webpage content",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png",
+    "512": "icons/icon512.png"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "styles/content.css", 
+        "chat.html",
+        "chat.js",
+        "content.js",
+        "utils/imageProcessor.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  
+  "author": "Your Name",
+  "homepage_url": "https://your-website.com"
+}

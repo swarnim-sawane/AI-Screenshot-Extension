@@ -1,0 +1,14 @@
+/* Note: This file is not used in the Edge version but kept for completeness */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  height: 100vh;
+  background: #f8f9fa;
+}
+
+/* Additional styles would go here if using Chrome side panel */

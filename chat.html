@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI Analysis Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #e3ebf6 0%, #f6f7fb 100%);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background: rgba(255, 255, 255, 0.90);
+            backdrop-filter: blur(4px);
+            border-bottom: 1px solid #e3e6ee;
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0px 2px 8px rgba(20, 90, 210, 0.04);
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 22px;
+            font-weight: 700;
+            color: #273c6c;
+            letter-spacing: 0.5px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            background: none;
+        }
+
+        .message {
+            background: linear-gradient(120deg, #ffffff 70%, #f5f9ff 100%);
+            border-radius: 16px;
+            padding: 20px 28px;
+            box-shadow: 0 4px 32px rgba(50, 70, 150, 0.07), 0 1.5px 8px rgba(50, 80, 160, 0.06);
+            max-width: 650px;
+            transition: box-shadow 0.2s;
+            position: relative;
+            min-height: 80px; 
+        }
+
+        .user-message {
+            background: linear-gradient(110deg, #3375f6 80%, #5996fd 100%);
+            color: white;
+            margin-left: 22%;
+            align-self: flex-end;
+            box-shadow: 0 6px 26px rgba(51, 117, 246, 0.13);
+        }
+
+        .ai-message {
+            background: linear-gradient(110deg, #f8fbff 80%, #e6f0fa 100%);
+            color: #273c6c;
+            margin-right: 22%;
+            align-self: flex-start;
+            border-left: 4px solid #3375f6;
+        }
+
+        .screenshot-image {
+            max-width: 100%;
+            border-radius: 12px;
+            margin-bottom: 14px;
+            border: 1.5px solid #d6e0f0;
+            box-shadow: 0 2px 8px rgba(51, 117, 246, 0.09);
+        }
+
+        /* Input area */
+        .chat-input-container {
+            background: rgba(255, 255, 255, 0.97);
+            border-top: 1.5px solid #e4e9f3;
+            padding: 20px 28px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            box-shadow: 0px -2px 16px rgba(51, 117, 246, 0.03);
+        }
+
+        #chatInput {
+            flex: 1;
+            padding: 14px 20px;
+            border: 1.5px solid #d9e1ee;
+            border-radius: 26px;
+            font-size: 15px;
+            outline: none;
+            background: #f9fafd;
+            color: #273c6c;
+            transition: border 0.2s;
+            box-shadow: 0 2px 6px rgba(140, 160, 230, 0.10);
+        }
+
+        #chatInput:focus {
+            border-color: #3375f6;
+            background: #fff;
+        }
+
+        .send-btn {
+            background: linear-gradient(110deg, #3375f6 80%, #5996fd 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 3px 14px rgba(51, 117, 246, 0.15);
+            transition: background 0.2s, transform 0.09s;
+        }
+
+        .send-btn:hover {
+            background: linear-gradient(110deg, #255ec4 85%, #3375f6 100%);
+            transform: scale(1.09);
+        }
+
+        /* Loading & message */
+        .loading {
+            color: #5c7ca7;
+            font-style: italic;
+            font-size: 17px;
+            text-align: center;
+            letter-spacing: 0.1em;
+        }
+
+        /* Markdown message styling */
+        .message-content {
+            line-height: 1.7;
+            font-size: 1.07em;
+            padding-right: 60px;
+        }
+
+        .message-content h1,
+        .message-content h2,
+        .message-content h3,
+        .message-content h4,
+        .message-content h5,
+        .message-content h6 {
+            margin: 18px 0 9px 0;
+            font-weight: 700;
+            color: #3375f6;
+        }
+
+        .message-content h1 {
+            font-size: 1.6em;
+        }
+
+        .message-content h2 {
+            font-size: 1.3em;
+        }
+
+        .message-content h3 {
+            font-size: 1.13em;
+        }
+
+        .message-content p {
+            margin: 9px 0;
+            line-height: 1.7;
+        }
+
+        .message-content ul,
+        .message-content ol {
+            margin: 10px 0 10px 14px;
+            padding-left: 17px;
+        }
+
+        .message-content li {
+            margin: 5px 0;
+            line-height: 1.6;
+        }
+
+        .message-content ul li {
+            list-style-type: disc;
+        }
+
+        .message-content ol li {
+            list-style-type: decimal;
+        }
+
+        .message-content strong {
+            font-weight: 700;
+            color: #274a89;
+        }
+
+        .message-content em {
+            font-style: italic;
+        }
+
+        .message-content code {
+            background: #e9effa;
+            padding: 3px 7px;
+            border-radius: 5px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.93em;
+        }
+
+        .message-content pre {
+            background: #f1f6fd;
+            border: 1.5px solid #d2e1fa;
+            border-radius: 8px;
+            padding: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+            box-shadow: 0 2px 8px rgba(93, 135, 246, 0.05);
+        }
+
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .message-content blockquote {
+            border-left: 4px solid #3375f6;
+            padding-left: 14px;
+            margin: 9px 0;
+            color: #6379a5;
+            font-style: italic;
+            background: #f7f8fa;
+            border-radius: 6px;
+        }
+
+        /* Nested lists */
+        .message-content ul ul,
+        .message-content ol ul,
+        .message-content ul ol,
+        .message-content ol ol {
+            margin: 4px 0;
+        }
+
+        .fade-in {
+            animation: fadein 0.6s;
+        }
+
+        @keyframes fadein {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            border: 2.5px solid #3375f6;
+            border-radius: 50%;
+            border-right-color: transparent;
+            animation: spin 0.7s linear infinite;
+            margin-left: 9px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .message-error {
+            background: linear-gradient(100deg, #f77070 85%, #ffb1b1 100%);
+            color: #fff !important;
+            border-left: 4px solid #ce2626;
+            font-weight: 600;
+        }
+
+        .copy-btn {
+      position: absolute;
+      top: 14px;
+      right: 18px;
+      background: #3375f6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(51, 117, 246, 0.15);
+      transition: background 0.2s;
+      z-index: 10;
+    }
+
+    .copy-btn:hover {
+      background: #255ec4;
+    }
+
+
+    </style>
+</head>
+
+<body>
+    <div class="chat-header">
+        <div class="header-title">
+            <span>🤖</span>
+            <span>AI Visual Analysis</span>
+        </div>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+        <!-- The initial message does NOT include a copy button; it will be added via JS -->
+        <div class="message ai-message">
+            <div class="message-content">
+                <div class="loading">Loading analysis...</div>
+            </div>
+        </div>
+    </div>
+    <div class="chat-input-container">
+        <input type="text" id="chatInput" placeholder="Ask a follow-up question...">
+        <button id="sendBtn" class="send-btn">📤</button>
+    </div>
+    <!-- Include marked library for markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="chat.js"></script>
+</body>
+
+</html>
