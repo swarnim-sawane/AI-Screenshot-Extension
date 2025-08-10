@@ -110,71 +110,121 @@ async function handleToggleCaptureMode(tabId) {
 }
 
 async function handleCaptureScreenshot(coordinates, tabId) {
-    try {
-        console.log('Capturing screenshot with coordinates:', coordinates);
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const dataUrl = await chrome.tabs.captureVisibleTab(null, {
-            format: 'png',
-            quality: 100
-        });
-
-        console.log('Full screenshot captured, now cropping...');
-
-        const croppedImage = await cropImageInServiceWorker(dataUrl, coordinates);
-        return { success: true, imageData: croppedImage };
-    } catch (error) {
-        console.error('Screenshot capture failed:', error);
-        throw new Error('Failed to capture screenshot: ' + error.message);
-    }
+  try {
+    console.log('Capturing screenshot with precise coordinates:', coordinates);
+    
+    // Capture at maximum quality
+    const dataUrl = await chrome.tabs.captureVisibleTab(null, {
+      format: 'png',
+      quality: 100  // Maximum quality for PNG (though PNG ignores this, it's good practice)
+    });
+    
+    console.log('Full screenshot captured successfully');
+    
+    // Crop with pixel-perfect precision
+    const croppedImage = await cropImageInServiceWorker(dataUrl, coordinates);
+    
+    return { success: true, imageData: croppedImage };
+  } catch (error) {
+    console.error('Screenshot capture failed:', error);
+    throw new Error('Failed to capture screenshot: ' + error.message);
+  }
 }
+
 
 async function cropImageInServiceWorker(dataUrl, coordinates) {
-    return new Promise((resolve, reject) => {
-        try {
-            console.log('Starting crop operation...');
-
-            const canvas = new OffscreenCanvas(coordinates.width, coordinates.height);
-            const ctx = canvas.getContext('2d');
-
-            fetch(dataUrl)
-                .then(response => response.blob())
-                .then(blob => createImageBitmap(blob))
-                .then(imageBitmap => {
-                    console.log('ImageBitmap created successfully');
-
-                    ctx.drawImage(
-                        imageBitmap,
-                        coordinates.x, coordinates.y, coordinates.width, coordinates.height,
-                        0, 0, coordinates.width, coordinates.height
-                    );
-
-                    canvas.convertToBlob({ type: 'image/png' })
-                        .then(blob => {
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                console.log('Crop operation completed successfully');
-                                resolve(reader.result);
-                            };
-                            reader.onerror = () => reject(new Error('Failed to read cropped image'));
-                            reader.readAsDataURL(blob);
-                        })
-                        .catch(error => {
-                            console.error('Failed to convert canvas to blob:', error);
-                            reject(error);
-                        });
-                })
-                .catch(error => {
-                    console.error('Failed to create ImageBitmap:', error);
-                    reject(error);
-                });
-        } catch (error) {
-            console.error('Error in crop operation:', error);
-            reject(error);
-        }
-    });
+  return new Promise((resolve, reject) => {
+    try {
+      console.log('PRECISE CROP with scroll-adjusted coordinates:', coordinates);
+      
+      // Apply device pixel ratio scaling to coordinates
+      const dpr = coordinates.devicePixelRatio || 1;
+      const scaledCoords = {
+        x: Math.round(coordinates.x * dpr),
+        y: Math.round(coordinates.y * dpr),
+        width: Math.round(coordinates.width * dpr),
+        height: Math.round(coordinates.height * dpr)
+      };
+      
+      console.log('SCALED coordinates for crop:', scaledCoords);
+      
+      const canvas = new OffscreenCanvas(scaledCoords.width, scaledCoords.height);
+      const ctx = canvas.getContext('2d');
+      
+      // Disable smoothing for pixel-perfect results
+      ctx.imageSmoothingEnabled = false;
+      
+      fetch(dataUrl)
+        .then(response => response.blob())
+        .then(blob => createImageBitmap(blob))
+        .then(imageBitmap => {
+          console.log('Screenshot image size:', imageBitmap.width, 'x', imageBitmap.height);
+          
+          // Safe crop function to prevent out-of-bounds
+          function safeCrop(imageWidth, imageHeight, x, y, w, h) {
+            const safeX = Math.max(0, Math.min(x, imageWidth - 1));
+            const safeY = Math.max(0, Math.min(y, imageHeight - 1));
+            const safeW = Math.min(w, imageWidth - safeX);
+            const safeH = Math.min(h, imageHeight - safeY);
+            return { safeX, safeY, safeW, safeH };
+          }
+          
+          const { safeX, safeY, safeW, safeH } = safeCrop(
+            imageBitmap.width, 
+            imageBitmap.height,
+            scaledCoords.x, 
+            scaledCoords.y, 
+            scaledCoords.width, 
+            scaledCoords.height
+          );
+          
+          console.log('SAFE CROP coordinates:', { safeX, safeY, safeW, safeH });
+          
+          // Update canvas size to actual crop size
+          canvas.width = safeW;
+          canvas.height = safeH;
+          
+          // Draw the exact selected area
+          ctx.drawImage(
+            imageBitmap,
+            safeX, safeY, safeW, safeH,  // Source rectangle (from screenshot)
+            0, 0, safeW, safeH           // Destination rectangle (to canvas)
+          );
+          
+          // Convert to PNG (uncompressed) - Groq limit is 4MB for base64[1]
+          canvas.convertToBlob({ type: 'image/png' })
+            .then(blob => {
+              console.log('Cropped image size:', blob.size, 'bytes');
+              
+              // Check if image exceeds Groq's 4MB base64 limit
+              if (blob.size > 4 * 1024 * 1024) {
+                console.warn('Image over 4MB, compressing for Groq API...');
+                // Compress to JPEG if too large
+                return canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
+              }
+              return blob;
+            })
+            .then(finalBlob => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                console.log('PRECISE CROP COMPLETED - Final size:', finalBlob.size, 'bytes');
+                resolve(reader.result);
+              };
+              reader.onerror = () => reject(new Error('Failed to read cropped image'));
+              reader.readAsDataURL(finalBlob);
+            })
+            .catch(reject);
+        })
+        .catch(reject);
+    } catch (error) {
+      console.error('Error in precise crop operation:', error);
+      reject(error);
+    }
+  });
 }
+
+
+
 
 async function analyzeImageWithGroq(imageData, prompt = "Analyze this image and provide insights") {
     try {
@@ -255,17 +305,23 @@ async function openChatWindow(imageData, analysis) {
 }
 
 // Handle keyboard shortcuts
-chrome.commands.onCommand.addListener((command) => {
-    console.log('Command received:', command);
+// Add this to your existing background.js
 
-    if (command === 'start-capture') {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0]) {
-                handleToggleCaptureMode(tabs[0].id);
-            }
-        });
-    }
+// Handle keyboard shortcuts
+chrome.commands.onCommand.addListener((command) => {
+  console.log('Keyboard command received:', command);
+  
+  if (command === 'start-capture') {
+    // Get the currently active tab
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+      if (tabs[0]) {
+        console.log('Starting capture from keyboard shortcut on tab:', tabs[0].id);
+        handleToggleCaptureMode(tabs[0].id);
+      }
+    });
+  }
 });
+
 
 
 // Production optimizations

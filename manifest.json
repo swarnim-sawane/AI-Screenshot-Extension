@@ -2,76 +2,70 @@
   "manifest_version": 3,
   "name": "Visual AI Screenshot Analyzer",
   "version": "1.0.0",
-  "description": "Instantly analyze any part of a webpage with AI-powered insights. Capture, crop, and get intelligent explanations in seconds.",
-  
+  "description": "Capture and analyze any part of a webpage with AI-powered insights",
   "permissions": [
     "activeTab",
     "storage",
     "scripting"
   ],
-  
   "host_permissions": [
     "https://api.groq.com/*"
   ],
-  
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' https://cdn.jsdelivr.net; object-src 'self'"
-  },
-  
   "background": {
     "service_worker": "background.js"
   },
-  
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["utils/imageProcessor.js", "content.js"],
-      "css": ["styles/content.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "utils/imageProcessor.js",
+        "content.js"
+      ],
+      "css": [
+        "styles/content.css"
+      ],
       "run_at": "document_end"
     }
   ],
-  
   "commands": {
     "start-capture": {
       "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "windows": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
+        "default": "Ctrl+Shift+X",
+        "windows": "Ctrl+Shift+X",
+        "mac": "Command+Shift+X"
       },
       "description": "Start screenshot selection"
     }
   },
-  
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Visual AI Screenshot Analyzer - Instantly understand any webpage content",
+    "default_title": "Visual AI Screenshot Analyzer",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
   },
-  
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
-    "128": "icons/icon128.png",
-    "512": "icons/icon512.png"
+    "128": "icons/icon128.png"
   },
-  
   "web_accessible_resources": [
     {
       "resources": [
-        "styles/content.css", 
+        "styles/content.css",
         "chat.html",
         "chat.js",
         "content.js",
-        "utils/imageProcessor.js"
+        "utils/imageProcessor.js",
+        "libs/marked.min.js"
       ],
-      "matches": ["<all_urls>"]
+      "matches": [
+        "<all_urls>"
+      ]
     }
-  ],
-  
-  "author": "Your Name",
-  "homepage_url": "https://your-website.com"
+  ]
 }

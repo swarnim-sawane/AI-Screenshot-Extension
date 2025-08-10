@@ -157,68 +157,76 @@
       this.selectionBox.style.height = height + 'px';
     }
     
-    async endSelection(e) {
-      if (!this.isSelecting) return;
+async endSelection(e) {
+  if (!this.isSelecting) return;
+  
+  console.log('NEW PRECISE SELECTION METHOD');
+  
+  const left = Math.min(this.startX, this.currentX);
+  const top = Math.min(this.startY, this.currentY);
+  const width = Math.abs(this.currentX - this.startX);
+  const height = Math.abs(this.currentY - this.startY);
+  
+  if (width < 10 || height < 10) {
+    this.toggle(false);
+    return;
+  }
+
+  // CRITICAL: Add scroll offsets to get absolute page coordinates
+  const pageCoordinates = {
+    x: Math.round(left + window.scrollX),
+    y: Math.round(top + window.scrollY), 
+    width: Math.round(width),
+    height: Math.round(height),
+    devicePixelRatio: window.devicePixelRatio || 1,
+    scrollX: window.scrollX,
+    scrollY: window.scrollY
+  };
+  
+  console.log('PAGE COORDINATES (with scroll):', pageCoordinates);
+  console.log('Device Pixel Ratio:', pageCoordinates.devicePixelRatio);
+  
+  this.toggle(false);
+  this.showLoadingIndicator();
+  
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'captureScreenshot',
+      coordinates: pageCoordinates
+    });
+    
+    if (response && response.success) {
+      console.log('Screenshot captured successfully');
       
-      console.log('Ending selection');
+      const analysisResult = await chrome.runtime.sendMessage({
+        action: 'analyzeWithGroq',
+        imageData: response.imageData,
+        prompt: 'Analyze this image and provide detailed insights about what you see.'
+      });
       
-      const left = Math.min(this.startX, this.currentX);
-      const top = Math.min(this.startY, this.currentY);
-      const width = Math.abs(this.currentX - this.startX);
-      const height = Math.abs(this.currentY - this.startY);
-      
-      if (width < 10 || height < 10) {
-        this.toggle(false);
-        return;
-      }
-      
-      const coordinates = {
-        x: left,
-        y: top,
-        width: width,
-        height: height
-      };
-      
-      this.toggle(false);
-      this.showLoadingIndicator();
-      
-      try {
-        console.log('Sending capture request with coordinates:', coordinates);
-        
-        const response = await chrome.runtime.sendMessage({
-          action: 'captureScreenshot',
-          coordinates: coordinates
+      if (analysisResult && analysisResult.success) {
+        chrome.runtime.sendMessage({
+          action: 'openChatWindow',
+          imageData: response.imageData,
+          analysis: analysisResult.analysis
         });
-        
-        if (response && response.success) {
-          console.log('Screenshot captured successfully');
-          
-          const analysisResult = await chrome.runtime.sendMessage({
-            action: 'analyzeWithGroq',
-            imageData: response.imageData,
-            prompt: 'Analyze this image and provide detailed insights about what you see.'
-          });
-          
-          if (analysisResult && analysisResult.success) {
-            chrome.runtime.sendMessage({
-              action: 'openChatWindow',
-              imageData: response.imageData,
-              analysis: analysisResult.analysis
-            });
-          } else {
-            this.showError('Failed to analyze image: ' + (analysisResult.error || 'Unknown error'));
-          }
-        } else {
-          console.error('Screenshot capture failed:', response.error);
-          this.showError('Failed to capture screenshot: ' + (response.error || 'Unknown error'));
-        }
-      } catch (error) {
-        console.error('Error processing screenshot:', error);
-        this.showError('Error processing screenshot: ' + error.message);
-      } finally {
-        this.hideLoadingIndicator();
+      } else {
+        this.showError('Failed to analyze image: ' + (analysisResult.error || 'Unknown error'));
       }
+    } else {
+      console.error('Screenshot capture failed:', response.error);
+      this.showError('Failed to capture screenshot: ' + (response.error || 'Unknown error'));
     }
+  } catch (error) {
+    console.error('Error processing screenshot:', error);
+    this.showError('Error processing screenshot: ' + error.message);
+  } finally {
+    this.hideLoadingIndicator();
+  }
+}
+
+
+
     
     showLoadingIndicator() {
       const existing = document.getElementById('screenshot-loader');
@@ -266,6 +274,7 @@
       }
     }
     
+    
     showError(message) {
       const error = document.createElement('div');
       error.textContent = message;
@@ -290,6 +299,8 @@
   // Initialize immediately when script loads
   function initializeScreenshotSelector() {
     console.log('Initializing ScreenshotSelector...');
+
+    
     
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
