@@ -1,15 +1,15 @@
 // Prevent multiple injections and ensure proper initialization
-(function() {
+(function () {
   'use strict';
-  
+
   console.log('Content script starting...');
-  
+
   // Check if already initialized
   if (window.screenshotSelectorInitialized) {
     console.log('ScreenshotSelector already exists, reusing...');
     return;
   }
-  
+
   // Mark as initializing
   window.screenshotSelectorInitialized = true;
 
@@ -23,20 +23,20 @@
       this.currentY = 0;
       this.overlay = null;
       this.selectionBox = null;
-      
+
       console.log('ScreenshotSelector constructor called');
       this.createOverlay();
       this.bindEvents();
       console.log('ScreenshotSelector initialized successfully');
     }
-    
+
     createOverlay() {
       // Remove existing overlay if present
       const existing = document.getElementById('screenshot-overlay');
       if (existing) {
         existing.remove();
       }
-      
+
       this.overlay = document.createElement('div');
       this.overlay.id = 'screenshot-overlay';
       this.overlay.style.cssText = `
@@ -51,7 +51,7 @@
         display: none !important;
         pointer-events: auto !important;
       `;
-      
+
       this.selectionBox = document.createElement('div');
       this.selectionBox.id = 'screenshot-selection';
       this.selectionBox.style.cssText = `
@@ -61,47 +61,47 @@
         display: none !important;
         pointer-events: none !important;
       `;
-      
+
       this.overlay.appendChild(this.selectionBox);
       document.body.appendChild(this.overlay);
       console.log('Overlay created and added to DOM');
     }
-    
+
     bindEvents() {
       this.overlay.addEventListener('mousedown', this.startSelection.bind(this));
       this.overlay.addEventListener('mousemove', this.updateSelection.bind(this));
       this.overlay.addEventListener('mouseup', this.endSelection.bind(this));
-      
+
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && this.isActive) {
           this.toggle(false);
         }
       });
-      
+
       console.log('Events bound successfully');
     }
-    
+
     toggle(active) {
       console.log('Toggling capture mode:', active);
       this.isActive = active;
       this.overlay.style.display = active ? 'block' : 'none';
-      
+
       if (!active) {
         this.selectionBox.style.display = 'none';
         this.isSelecting = false;
       }
-      
+
       if (active) {
         this.showInstructions();
       } else {
         this.hideInstructions();
       }
     }
-    
+
     showInstructions() {
       const existing = document.getElementById('screenshot-instruction');
       if (existing) existing.remove();
-      
+
       const instruction = document.createElement('div');
       instruction.id = 'screenshot-instruction';
       instruction.textContent = 'Click and drag to select an area for AI analysis. Press ESC to cancel.';
@@ -120,14 +120,14 @@
       `;
       document.body.appendChild(instruction);
     }
-    
+
     hideInstructions() {
       const instruction = document.getElementById('screenshot-instruction');
       if (instruction) {
         instruction.remove();
       }
     }
-    
+
     startSelection(e) {
       console.log('Starting selection');
       this.isSelecting = true;
@@ -139,99 +139,99 @@
       this.selectionBox.style.width = '0px';
       this.selectionBox.style.height = '0px';
     }
-    
+
     updateSelection(e) {
       if (!this.isSelecting) return;
-      
+
       this.currentX = e.clientX;
       this.currentY = e.clientY;
-      
+
       const left = Math.min(this.startX, this.currentX);
       const top = Math.min(this.startY, this.currentY);
       const width = Math.abs(this.currentX - this.startX);
       const height = Math.abs(this.currentY - this.startY);
-      
+
       this.selectionBox.style.left = left + 'px';
       this.selectionBox.style.top = top + 'px';
       this.selectionBox.style.width = width + 'px';
       this.selectionBox.style.height = height + 'px';
     }
-    
-async endSelection(e) {
-  if (!this.isSelecting) return;
-  
-  console.log('NEW PRECISE SELECTION METHOD');
-  
-  const left = Math.min(this.startX, this.currentX);
-  const top = Math.min(this.startY, this.currentY);
-  const width = Math.abs(this.currentX - this.startX);
-  const height = Math.abs(this.currentY - this.startY);
-  
-  if (width < 10 || height < 10) {
-    this.toggle(false);
-    return;
-  }
 
-  // CRITICAL: Add scroll offsets to get absolute page coordinates
-  const pageCoordinates = {
-    x: Math.round(left + window.scrollX),
-    y: Math.round(top + window.scrollY), 
-    width: Math.round(width),
-    height: Math.round(height),
-    devicePixelRatio: window.devicePixelRatio || 1,
-    scrollX: window.scrollX,
-    scrollY: window.scrollY
-  };
-  
-  console.log('PAGE COORDINATES (with scroll):', pageCoordinates);
-  console.log('Device Pixel Ratio:', pageCoordinates.devicePixelRatio);
-  
-  this.toggle(false);
-  this.showLoadingIndicator();
-  
-  try {
-    const response = await chrome.runtime.sendMessage({
-      action: 'captureScreenshot',
-      coordinates: pageCoordinates
-    });
-    
-    if (response && response.success) {
-      console.log('Screenshot captured successfully');
-      
-      const analysisResult = await chrome.runtime.sendMessage({
-        action: 'analyzeWithGroq',
-        imageData: response.imageData,
-        prompt: 'Analyze this image and provide detailed insights about what you see.'
-      });
-      
-      if (analysisResult && analysisResult.success) {
-        chrome.runtime.sendMessage({
-          action: 'openChatWindow',
-          imageData: response.imageData,
-          analysis: analysisResult.analysis
-        });
-      } else {
-        this.showError('Failed to analyze image: ' + (analysisResult.error || 'Unknown error'));
+    async endSelection(e) {
+      if (!this.isSelecting) return;
+
+      console.log('NEW PRECISE SELECTION METHOD');
+
+      const left = Math.min(this.startX, this.currentX);
+      const top = Math.min(this.startY, this.currentY);
+      const width = Math.abs(this.currentX - this.startX);
+      const height = Math.abs(this.currentY - this.startY);
+
+      if (width < 10 || height < 10) {
+        this.toggle(false);
+        return;
       }
-    } else {
-      console.error('Screenshot capture failed:', response.error);
-      this.showError('Failed to capture screenshot: ' + (response.error || 'Unknown error'));
+
+      // CRITICAL: Add scroll offsets to get absolute page coordinates
+      const pageCoordinates = {
+        x: Math.round(left + window.scrollX),
+        y: Math.round(top + window.scrollY),
+        width: Math.round(width),
+        height: Math.round(height),
+        devicePixelRatio: window.devicePixelRatio || 1,
+        scrollX: window.scrollX,
+        scrollY: window.scrollY
+      };
+
+      console.log('PAGE COORDINATES (with scroll):', pageCoordinates);
+      console.log('Device Pixel Ratio:', pageCoordinates.devicePixelRatio);
+
+      this.toggle(false);
+      this.showLoadingIndicator();
+
+      try {
+        const response = await chrome.runtime.sendMessage({
+          action: 'captureScreenshot',
+          coordinates: pageCoordinates
+        });
+
+        if (response && response.success) {
+          console.log('Screenshot captured successfully');
+
+          const analysisResult = await chrome.runtime.sendMessage({
+            action: 'analyzeWithGroq',
+            imageData: response.imageData,
+            prompt: 'Analyze this image and provide detailed insights about what you see.'
+          });
+
+          if (analysisResult && analysisResult.success) {
+            chrome.runtime.sendMessage({
+              action: 'openChatWindow',
+              imageData: response.imageData,
+              analysis: analysisResult.analysis
+            });
+          } else {
+            this.showError('Failed to analyze image: ' + (analysisResult.error || 'Unknown error'));
+          }
+        } else {
+          console.error('Screenshot capture failed:', response.error);
+          this.showError('Failed to capture screenshot: ' + (response.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error processing screenshot:', error);
+        this.showError('Error processing screenshot: ' + error.message);
+      } finally {
+        this.hideLoadingIndicator();
+      }
     }
-  } catch (error) {
-    console.error('Error processing screenshot:', error);
-    this.showError('Error processing screenshot: ' + error.message);
-  } finally {
-    this.hideLoadingIndicator();
-  }
-}
 
 
 
-    
+
     showLoadingIndicator() {
       const existing = document.getElementById('screenshot-loader');
       if (existing) existing.remove();
-      
+
       const loader = document.createElement('div');
       loader.id = 'screenshot-loader';
       loader.innerHTML = `
@@ -252,7 +252,7 @@ async endSelection(e) {
         font-family: Arial, sans-serif !important;
         font-size: 14px !important;
       `;
-      
+
       if (!document.head.querySelector('#spinner-style')) {
         const style = document.createElement('style');
         style.id = 'spinner-style';
@@ -266,15 +266,15 @@ async endSelection(e) {
       }
       document.body.appendChild(loader);
     }
-    
+
     hideLoadingIndicator() {
       const loader = document.getElementById('screenshot-loader');
       if (loader) {
         loader.remove();
       }
     }
-    
-    
+
+
     showError(message) {
       const error = document.createElement('div');
       error.textContent = message;
@@ -291,7 +291,7 @@ async endSelection(e) {
         font-size: 14px !important;
       `;
       document.body.appendChild(error);
-      
+
       setTimeout(() => error.remove(), 3000);
     }
   }
@@ -300,8 +300,8 @@ async endSelection(e) {
   function initializeScreenshotSelector() {
     console.log('Initializing ScreenshotSelector...');
 
-    
-    
+
+
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
