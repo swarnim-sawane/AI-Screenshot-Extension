@@ -226,7 +226,7 @@ async function cropImageInServiceWorker(dataUrl, coordinates) {
 
 
 
-async function analyzeImageWithGroq(imageData, prompt = "Analyze this image and provide insights") {
+async function analyzeImageWithGroq(imageData, prompt = "Analyze this image, provide insights and answer follow up questions") {
     try {
         const result = await chrome.storage.sync.get(['groqApiKey']);
         const apiKey = result.groqApiKey;
@@ -235,7 +235,7 @@ async function analyzeImageWithGroq(imageData, prompt = "Analyze this image and 
             throw new Error('Groq API key not configured');
         }
 
-        console.log('Sending request to Groq API with Llama 4 Scout model...');
+        console.log('Sending request to Groq API with Llama 4 Mavrick model...');
 
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
@@ -244,7 +244,7 @@ async function analyzeImageWithGroq(imageData, prompt = "Analyze this image and 
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'meta-llama/llama-4-scout-17b-16e-instruct', // Updated to full model name
+                model: 'meta-llama/llama-4-maverick-17b-128e-instruct', // Updated to full model name
                 messages: [{
                     role: 'user',
                     content: [
